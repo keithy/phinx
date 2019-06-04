@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Phinx
  *
@@ -26,6 +27,7 @@
  * @package    Phinx
  * @subpackage Phinx\Config
  */
+
 namespace Phinx\Config;
 
 use Symfony\Component\Yaml\Yaml;
@@ -39,7 +41,6 @@ use Symfony\Component\Yaml\Yaml;
 class Config implements ConfigInterface, NamespaceAwareInterface
 {
     use NamespaceAwareTrait;
-
     /**
      * The value that identifies a version order by creation time.
      */
@@ -70,6 +71,22 @@ class Config implements ConfigInterface, NamespaceAwareInterface
     }
 
     /**
+     * For user supplied subclasses to override
+     * default behavior allows user to __invoke a filtering class
+     *  
+     * @return $this
+     */
+    public function initialize()
+    {
+        if (isset($this->values['config_filter'])) {
+            $filterClass = $this->values['config_filter'];
+            $filter = new $filterClass();
+            $this->values = $filter($this->values);
+        }
+        return $this;
+    }
+
+    /**
      * Create a new instance of the config class using a Yaml file path.
      *
      * @param  string $configFilePath Path to the Yaml File
@@ -83,12 +100,12 @@ class Config implements ConfigInterface, NamespaceAwareInterface
 
         if (!is_array($configArray)) {
             throw new \RuntimeException(sprintf(
-                'File \'%s\' must be valid YAML',
-                $configFilePath
+                            'File \'%s\' must be valid YAML',
+                            $configFilePath
             ));
         }
 
-        return new static($configArray, $configFilePath);
+        return static::newFor($configArray, $configFilePath);
     }
 
     /**
@@ -103,12 +120,12 @@ class Config implements ConfigInterface, NamespaceAwareInterface
         $configArray = json_decode(file_get_contents($configFilePath), true);
         if (!is_array($configArray)) {
             throw new \RuntimeException(sprintf(
-                'File \'%s\' must be valid JSON',
-                $configFilePath
+                            'File \'%s\' must be valid JSON',
+                            $configFilePath
             ));
         }
 
-        return new static($configArray, $configFilePath);
+        return static::newFor($configArray, $configFilePath);
     }
 
     /**
@@ -129,12 +146,28 @@ class Config implements ConfigInterface, NamespaceAwareInterface
 
         if (!is_array($configArray)) {
             throw new \RuntimeException(sprintf(
-                'PHP file \'%s\' must return an array',
-                $configFilePath
+                            'PHP file \'%s\' must return an array',
+                            $configFilePath
             ));
         }
 
-        return new static($configArray, $configFilePath);
+        return static::newFor($configArray, $configFilePath);
+    }
+
+    /**
+     * Instanciation method allowing user override
+     * 
+     * @param type $configArray
+     * @param type $configFilePath
+     * @return type
+     */
+    public static function newFor($configArray, $configFilePath)
+    {
+        $theClass = static::class;
+        if (isset($configArray['config_class'])) $theClass = $configArray['config_class'];
+
+        $theConfig = new $theClass($configArray, $configFilePath);
+        return $theConfig->initialize();
     }
 
     /**
@@ -165,8 +198,7 @@ class Config implements ConfigInterface, NamespaceAwareInterface
 
         if (isset($environments[$name])) {
             if (isset($this->values['environments']['default_migration_table'])) {
-                $environments[$name]['default_migration_table'] =
-                    $this->values['environments']['default_migration_table'];
+                $environments[$name]['default_migration_table'] = $this->values['environments']['default_migration_table'];
             }
 
             return $environments[$name];
@@ -196,8 +228,8 @@ class Config implements ConfigInterface, NamespaceAwareInterface
             }
 
             throw new \RuntimeException(sprintf(
-                'The environment configuration (read from $PHINX_ENVIRONMENT) for \'%s\' is missing',
-                $env
+                            'The environment configuration (read from $PHINX_ENVIRONMENT) for \'%s\' is missing',
+                            $env
             ));
         }
 
@@ -209,8 +241,8 @@ class Config implements ConfigInterface, NamespaceAwareInterface
             }
 
             throw new \RuntimeException(sprintf(
-                'The environment configuration for \'%s\' is missing',
-                $this->values['environments']['default_database']
+                            'The environment configuration for \'%s\' is missing',
+                            $this->values['environments']['default_database']
             ));
         }
 
